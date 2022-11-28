@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "type": "emulicious-debugger",
+            "name": "Launch in Emulicious",
+            "request": "launch",
+            "program": "${fileWorkspaceFolder}/main.gb",
+            "preLaunchTask":"buildGB",
+            "port": 58870
+        }
+    ]
+}
