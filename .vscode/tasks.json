@@ -6,7 +6,7 @@
         {
             "label": "buildGB",
             "type": "shell",
-            "command": "C:/Projects/GameBoyTest/make.bat",
+            "command": "${fileWorkspaceFolder}/make.bat",
             // "args": [
             //     // Ask msbuild to generate full paths for file names.
             //     "/property:GenerateFullPaths=true",

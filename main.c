@@ -26,6 +26,7 @@ struct Invader
     UBYTE spriteId; //Invader is 8x8px.
     uint8_t x;
     uint8_t y;
+    bool isActive;
 };
 struct Bullet
 {
@@ -43,8 +44,7 @@ struct Invader invader;
 struct Bullet bullet;
 const uint8_t bulletSpeed = 3;
 
-//Functions
-
+//General helper Functions
 void PerformantDelay(uint8_t numloops)
 {
     for (uint8_t i = 0; i < numloops; i++)
@@ -53,12 +53,12 @@ void PerformantDelay(uint8_t numloops)
     }
 }
 
+//Player (ship) functions
 void MoveShip(struct Ship* pShip, uint8_t x, uint8_t y)
 {
     move_sprite(pShip->spriteIds[0], x, y);
     move_sprite(pShip->spriteIds[1], x + 8, y);
 }
-
 void InitShip()
 {
     ship.x = 80;
@@ -73,6 +73,7 @@ void InitShip()
     MoveShip(&ship, ship.x, ship.y);
 }
 
+//Enemies (invaders) functions
 void InitInvader()
 {
     invader.x = 80;
@@ -83,6 +84,7 @@ void InitInvader()
     move_sprite(invader.spriteId, invader.x, invader.y);
 }
 
+//Bullet Functions
 void InitBullet()
 {
     bullet.spriteId = 3;
@@ -90,7 +92,6 @@ void InitBullet()
     bullet.y = 0;
     bullet.isActive = false;
 }
-
 void CreateBullet()
 {
     //If the bullet is already alive, do nothing
@@ -105,13 +106,11 @@ void CreateBullet()
     bullet.spriteId = 3;
     move_sprite(bullet.spriteId, bullet.x, bullet.y);
 }
-
 void DestroyBullet()
 {
     set_sprite_tile(3, NULL);
     bullet.isActive = false;
 }
-
 void UpdateBullet()
 {
     if (!bullet.isActive)
@@ -129,6 +128,7 @@ void UpdateBullet()
     move_sprite(bullet.spriteId, bullet.x, bullet.y);
 }
 
+//Main function
 void main()
 {
     set_sprite_data(0, 4, GameSprites);
