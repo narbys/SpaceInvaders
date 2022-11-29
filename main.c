@@ -1,5 +1,6 @@
 #include <stdint.h>
-#include <stdlib.h>
+#include <stdbool.h>
+// #include <stdlib.h>
 #include <gb/gb.h>
 #include "GameSprites.c"
 
@@ -31,6 +32,7 @@ struct Bullet
     UBYTE spriteId;
     uint8_t x;
     uint8_t y;
+    bool isActive;
 };
 
 //Global Variables
@@ -38,7 +40,7 @@ struct Ship ship;
 const uint8_t shipMoveSpeed = 2;
 
 struct Invader invader;
-struct Bullet* pBullet = NULL;
+struct Bullet bullet;
 const uint8_t bulletSpeed = 3;
 
 //Functions
@@ -81,47 +83,50 @@ void InitInvader()
     move_sprite(invader.spriteId, invader.x, invader.y);
 }
 
+void InitBullet()
+{
+    bullet.spriteId = 3;
+    bullet.x = 0;
+    bullet.y = 0;
+    bullet.isActive = false;
+}
+
 void CreateBullet()
 {
     //If the bullet is already alive, do nothing
-    if (pBullet)
+    if (bullet.isActive)
         return;
 
-    pBullet = (struct Bullet*)malloc(sizeof(struct Bullet));
-
-#ifdef _DEBUG
-    assert(pBullet);
-#endif
-
     //Initialise the bullet
-    pBullet->x = ship.x + 8;
-    pBullet->y = ship.y - 8;
+    bullet.x = ship.x + 8;
+    bullet.y = ship.y - 8;
+    bullet.isActive = true;
     set_sprite_tile(3, 3);
-    pBullet->spriteId = 3;
-    move_sprite(pBullet->spriteId, pBullet->x, pBullet->y);
+    bullet.spriteId = 3;
+    move_sprite(bullet.spriteId, bullet.x, bullet.y);
 }
 
 void DestroyBullet()
 {
-    free(pBullet);
-    pBullet = NULL;
+    set_sprite_tile(3, NULL);
+    bullet.isActive = false;
 }
 
 void UpdateBullet()
 {
-    if (!pBullet)
+    if (!bullet.isActive)
         return;
 
     //Check if bullet is out of screen
-    if (pBullet->y + 8 > 255)
+    if (bullet.y >= 255)
     {
         DestroyBullet();
         return;
     }
 
     //Move the bullet
-    pBullet->y -= bulletSpeed;
-    move_sprite(pBullet->spriteId, pBullet->x, pBullet->y);
+    bullet.y -= bulletSpeed;
+    move_sprite(bullet.spriteId, bullet.x, bullet.y);
 }
 
 void main()
@@ -129,6 +134,7 @@ void main()
     set_sprite_data(0, 4, GameSprites);
     InitShip();
     InitInvader();
+    InitBullet();
 
     SHOW_SPRITES;
     DISPLAY_ON;
