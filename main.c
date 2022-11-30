@@ -3,6 +3,7 @@
 // #include <stdlib.h>
 #include <gb/gb.h>
 #include "GameSprites.c"
+#include "BkgTiles.c"
 
 #define _DEBUG
 //#define _RELEASE
@@ -40,7 +41,7 @@ struct Bullet
 struct Ship ship;
 const uint8_t shipMoveSpeed = 2;
 
-struct Invader invader;
+struct Invader invaders[40];
 struct Bullet bullet;
 const uint8_t bulletSpeed = 3;
 
@@ -76,18 +77,20 @@ void InitShip()
 //Enemies (invaders) functions
 void InitInvader()
 {
-    invader.x = 80;
-    invader.y = 30;
-
-    set_sprite_tile(2, 2);
-    invader.spriteId = 2;
-    move_sprite(invader.spriteId, invader.x, invader.y);
+    for (uint8_t i = 0;i < 40;i++)
+    {
+        invaders[i].x = (i % 8) * 2 + 2;
+        invaders[i].y = (i / 8) + 2;
+        invaders[i].isActive = true;
+        invaders[i].spriteId = 1;
+        set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
+    }
 }
 
 //Bullet Functions
 void InitBullet()
 {
-    bullet.spriteId = 3;
+    bullet.spriteId = 2;
     bullet.x = 0;
     bullet.y = 0;
     bullet.isActive = false;
@@ -102,8 +105,8 @@ void CreateBullet()
     bullet.x = ship.x + 8;
     bullet.y = ship.y - 8;
     bullet.isActive = true;
-    set_sprite_tile(3, 3);
-    bullet.spriteId = 3;
+    set_sprite_tile(2, 2);
+    bullet.spriteId = 2;
     move_sprite(bullet.spriteId, bullet.x, bullet.y);
 }
 void DestroyBullet()
@@ -132,12 +135,17 @@ void UpdateBullet()
 void main()
 {
     set_sprite_data(0, 4, GameSprites);
+    set_bkg_data(0, 2, BkgTiles);
+    init_bkg(0);
+
     InitShip();
     InitInvader();
     InitBullet();
 
-    SHOW_SPRITES;
     DISPLAY_ON;
+    SHOW_SPRITES;
+    SHOW_BKG;
+    SPRITES_8x8;
 
     while (1)
     {
