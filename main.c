@@ -24,10 +24,11 @@ struct Ship
 };
 struct Invader
 {
+    bool isActive;
     UBYTE spriteId; //Invader is 8x8px.
     uint8_t x;
     uint8_t y;
-    bool isActive;
+    uint8_t slide;
 };
 struct Bullet
 {
@@ -42,6 +43,9 @@ struct Ship ship;
 const uint8_t shipMoveSpeed = 2;
 
 struct Invader invaders[40];
+int8_t slideDir;
+uint8_t invaderMoveTimer;
+
 struct Bullet bullet;
 const uint8_t bulletSpeed = 3;
 
@@ -75,7 +79,7 @@ void InitShip()
 }
 
 //Enemies (invaders) functions
-void InitInvader()
+void InitInvaders()
 {
     for (uint8_t i = 0;i < 40;i++)
     {
@@ -83,7 +87,48 @@ void InitInvader()
         invaders[i].y = (i / 8) + 2;
         invaders[i].isActive = true;
         invaders[i].spriteId = 1;
+        invaders[i].slide = 0;
         set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
+    }
+
+    slideDir = 1;
+    invaderMoveTimer = 0;
+}
+
+void UpdateInvaders()
+{
+    invaderMoveTimer++;
+    if (invaderMoveTimer > 16)
+    {
+        invaderMoveTimer = 0;
+        for (uint8_t i = 0;i < 40;i++)
+        {
+            if (!invaders[i].isActive) return;
+
+            invaders[i].slide++;
+            if (invaders[i].slide == 0)
+            {
+                set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
+                set_bkg_tile_xy(invaders[i].x - 1, invaders[i].y, 0);
+            }
+            else if (invaders[i].slide > 0)
+            {
+                set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId + 16 - invaders[i].slide);
+                set_bkg_tile_xy(invaders[i].x + 1, invaders[i].y, invaders[i].spriteId + 8 - invaders[i].slide);
+            }
+            // else if (invaders[i].slide < 0)
+            // {
+
+            //     set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId - invaders[i].slide);
+            //     set_bkg_tile_xy(invaders[i].x - 1, invaders[i].y, invaders[i].spriteId + 7 - invaders[i].slide);
+            // }
+
+            if (invaders[i].slide > 7)
+            {
+                invaders[i].slide = 0;
+                invaders[i].x++;
+            }
+        }
     }
 }
 
@@ -135,11 +180,11 @@ void UpdateBullet()
 void main()
 {
     set_sprite_data(0, 4, GameSprites);
-    set_bkg_data(0, 2, BkgTiles);
+    set_bkg_data(0, 17, BkgTiles);
     init_bkg(0);
 
     InitShip();
-    InitInvader();
+    InitInvaders();
     InitBullet();
 
     DISPLAY_ON;
@@ -175,7 +220,8 @@ void main()
             break;
         }
 
-        //Bullet updating
+        //Updating
+        UpdateInvaders();
         UpdateBullet();
 
         PerformantDelay(2);
