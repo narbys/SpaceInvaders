@@ -11,6 +11,7 @@
 //Debug includes
 #ifdef _DEBUG
 #include <assert.h>
+#include <stdio.h>
 #endif
 
 //Structs
@@ -28,7 +29,7 @@ struct Invader
     UBYTE spriteId; //Invader is 8x8px.
     uint8_t x;
     uint8_t y;
-    uint8_t slide;
+    int8_t slide;
 };
 struct Bullet
 {
@@ -45,6 +46,7 @@ const uint8_t shipMoveSpeed = 2;
 struct Invader invaders[40];
 int8_t slideDir;
 uint8_t invaderMoveTimer;
+bool hasInvaderReachedScreenedge;
 
 struct Bullet bullet;
 const uint8_t bulletSpeed = 3;
@@ -91,46 +93,90 @@ void InitInvaders()
         set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
     }
 
-    slideDir = 1;
+
+    // invaders[5].isActive = false;
+
+    slideDir = -1;
     invaderMoveTimer = 0;
+    hasInvaderReachedScreenedge = false;
+}
+
+//Drawing code for moving the invader on the background
+void UpdateinvaderTiles(uint8_t i)
+{
+
+    if (invaders[i].slide == 0)
+    {
+        set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
+        set_bkg_tile_xy(invaders[i].x - slideDir, invaders[i].y, 0);
+        set_bkg_tile_xy(invaders[i].x + slideDir, invaders[i].y, 0);
+    }
+    else if (invaders[i].slide > 0)
+    {
+        set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId + 16 - invaders[i].slide);
+        set_bkg_tile_xy(invaders[i].x + 1, invaders[i].y, invaders[i].spriteId + 8 - invaders[i].slide);
+    }
+    else if (invaders[i].slide < 0)
+    {
+
+        set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId - invaders[i].slide);
+        set_bkg_tile_xy(invaders[i].x - 1, invaders[i].y, invaders[i].spriteId + 8 - invaders[i].slide);
+    }
 }
 
 void UpdateInvaders()
 {
     invaderMoveTimer++;
-    if (invaderMoveTimer > 16)
+    if (invaderMoveTimer < 16) //16
+        return;
+    else
     {
         invaderMoveTimer = 0;
+    }
+
+    if (hasInvaderReachedScreenedge)
+    {
+        hasInvaderReachedScreenedge = false;
+
         for (uint8_t i = 0;i < 40;i++)
         {
-            if (!invaders[i].isActive) return;
+            invaders[i].y++;
+        }
 
-            invaders[i].slide++;
-            if (invaders[i].slide == 0)
-            {
-                set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
-                set_bkg_tile_xy(invaders[i].x - 1, invaders[i].y, 0);
-            }
-            else if (invaders[i].slide > 0)
-            {
-                set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId + 16 - invaders[i].slide);
-                set_bkg_tile_xy(invaders[i].x + 1, invaders[i].y, invaders[i].spriteId + 8 - invaders[i].slide);
-            }
-            // else if (invaders[i].slide < 0)
-            // {
+        slideDir = -slideDir;
+        fill_bkg_rect(0, invaders[0].y - 1, 20, 1, 0);
+    }
 
-            //     set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId - invaders[i].slide);
-            //     set_bkg_tile_xy(invaders[i].x - 1, invaders[i].y, invaders[i].spriteId + 7 - invaders[i].slide);
-            // }
+    for (uint8_t i = 0;i < 40;i++)
+    {
+        if (invaders[i].isActive == false)
+        {
+            // Just draw blank
+            set_bkg_tile_xy(invaders[i].x, invaders[i].y, 0);
+            set_bkg_tile_xy(invaders[i].x + slideDir, invaders[i].y, 0);
+        }
+        else
+        {
+            //Move the invader
+            UpdateinvaderTiles(i);
+        }
+        invaders[i].slide += slideDir;
 
-            if (invaders[i].slide > 7)
-            {
-                invaders[i].slide = 0;
-                invaders[i].x++;
-            }
+        //If we shifted 7 times, reset.
+        if ((invaders[i].slide > 7) || (invaders[i].slide < -7))
+        {
+            invaders[i].slide = 0;
+            invaders[i].x += slideDir;
+        }
+
+        //If we are on the edge
+        if (((invaders[i].x == 0) || (invaders[i].x == 19)) && (invaders[i].slide == 0))
+        {
+            hasInvaderReachedScreenedge = true;
         }
     }
 }
+
 
 //Bullet Functions
 void InitBullet()
