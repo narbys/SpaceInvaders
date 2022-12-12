@@ -1,7 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
-// #include <stdlib.h>
+//#include <stdlib.h>
 #include <gb/gb.h>
+//#include <rand.h>
 #include "GameSprites.c"
 #include "BkgTiles.c"
 
@@ -48,6 +49,9 @@ struct EnemyBullet
 };
 
 //Global Variables
+//General
+bool GameRunning;
+
 //player
 struct Ship ship;
 const uint8_t shipMoveSpeed = 2;
@@ -60,10 +64,13 @@ struct Invader invaders[40];
 int8_t slideDir;
 uint8_t invaderMoveTimer;
 bool hasInvaderReachedScreenedge;
+uint8_t shotTimer;
+const uint8_t shotTimerMaxTime = 2;
 
 struct EnemyBullet invaderBullet[5];    //The enemy can have 5 bullets on screen at the same time
 const uint8_t initialInvaderBulletSpriteId = 4;
 uint8_t freeBulletIdx;
+const uint8_t invaderBulletSpeed = 2;
 
 //General helper Functions
 void PerformantDelay(uint8_t numloops)
@@ -73,6 +80,17 @@ void PerformantDelay(uint8_t numloops)
         wait_vbl_done();
     }
 }
+
+//Taken from LaroldsJubilantJunkyard
+uint8_t RandomNumber(uint8_t min, uint8_t max)
+{
+
+    // Use some sprites in getting a random value
+    uint8_t v = DIV_REG + shadow_OAM[0].x + shadow_OAM[2].x + shadow_OAM[3].x;
+
+    return min + (v % (max - min));    // get value at memory address
+}
+
 
 //Player (ship) functions
 void MoveShip(struct Ship* pShip, uint8_t x, uint8_t y)
@@ -93,28 +111,6 @@ void InitShip()
     ship.spriteIds[1] = 2;
     MoveShip(&ship, ship.x, ship.y);
 }
-
-//Enemies (invaders) functions
-void InitInvaders()
-{
-    for (uint8_t i = 0;i < 40;i++)
-    {
-        invaders[i].x = (i % 8) * 2 + 2;
-        invaders[i].y = (i / 8) + 2;
-        invaders[i].isActive = true;
-        invaders[i].spriteId = 1;
-        invaders[i].slide = 0;
-        set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
-    }
-
-
-    // invaders[5].isActive = false;
-
-    slideDir = -1;
-    invaderMoveTimer = 0;
-    hasInvaderReachedScreenedge = false;
-}
-
 void InitInvaderBullets()
 {
     for (uint8_t i = 0;i < 5;i++)
@@ -125,7 +121,9 @@ void InitInvaderBullets()
         invaderBullet[i].y = 0;
     }
 }
-bool TryCreateInvaderBullet(uint8_t x, uint8_t y)
+
+//Invader bullet functions
+void TryCreateInvaderBullet(uint8_t x, uint8_t y)
 {
     for (uint8_t i = 0;i < 5;i++)
     {
@@ -139,7 +137,7 @@ bool TryCreateInvaderBullet(uint8_t x, uint8_t y)
             break;
         }
         //Return because all bullets are in use
-        return false;
+        return;
     }
     //We found a free space, spawn the bullet
     invaderBullet[freeBulletIdx].isActive = true;
@@ -169,12 +167,48 @@ void UpdateInvaderBullets()
         }
 
         //Move the bullet
-        invaderBullet[i].y += 3;
+        invaderBullet[i].y += invaderBulletSpeed;
         move_sprite(invaderBullet[i].spriteId, invaderBullet[i].x, invaderBullet[i].y);
 
         //Check if we hit the player
+        const bool hit = (invaderBullet[i].x >= ship.x && invaderBullet[i].x <= ship.x + ship.width) &&
+            (invaderBullet[i].y >= ship.y && invaderBullet[i].y <= ship.y + ship.height) ||
+            (ship.x >= invaderBullet[i].x && ship.x <= invaderBullet[i].x + 8) &&
+            (ship.y >= invaderBullet[i].y && ship.y <= invaderBullet[i].y + 8);
+        if (hit)
+        {
+            //hit the player.
+            printf("GAME OVER");
+            //stop the game loop, for now
+            GameRunning = false;
+        }
     }
 }
+
+//Enemies (invaders) functions
+void InitInvaders()
+{
+    for (uint8_t i = 0;i < 40;i++)
+    {
+        invaders[i].x = (i % 8) * 2 + 2;
+        invaders[i].y = (i / 8) + 2;
+        invaders[i].isActive = true;
+        invaders[i].spriteId = 1;
+        invaders[i].slide = 0;
+        set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
+    }
+
+    // for (uint8_t i = 0;i < 24;i++)
+    // {
+    //     invaders[i].isActive = false;
+    // }
+
+    slideDir = -1;
+    invaderMoveTimer = 0;
+    hasInvaderReachedScreenedge = false;
+    shotTimer = shotTimerMaxTime;
+}
+
 
 //Drawing code for moving the invader on the background
 void UpdateinvaderTiles(uint8_t i)
@@ -201,14 +235,17 @@ void UpdateinvaderTiles(uint8_t i)
 
 void UpdateInvaders()
 {
+    //invader movement timer
     invaderMoveTimer++;
     if (invaderMoveTimer < 16) //16
         return;
     else
-    {
         invaderMoveTimer = 0;
-    }
 
+    //invader shooting timer
+    if (shotTimer != 0)shotTimer--;
+
+    //Shift all invaders down when they reach the edge
     if (hasInvaderReachedScreenedge)
     {
         hasInvaderReachedScreenedge = false;
@@ -219,9 +256,11 @@ void UpdateInvaders()
         }
 
         slideDir = -slideDir;
+        //set the previous top row blank
         fill_bkg_rect(0, invaders[0].y - 1, 20, 1, 0);
     }
 
+    //Invader updateloop
     for (uint8_t i = 0;i < 40;i++)
     {
         if (invaders[i].isActive == false)
@@ -234,6 +273,15 @@ void UpdateInvaders()
         {
             //Move the invader
             UpdateinvaderTiles(i);
+
+            //Try to shoot a bullet
+            if (shotTimer == 0 && RandomNumber(0, 100) < 10)
+            {
+                const uint8_t x = invaders[i].x * 8 + 12 + invaders[i].slide;
+                const uint8_t y = invaders[i].y * 8 + 24;
+                TryCreateInvaderBullet(x, y);
+                shotTimer = shotTimerMaxTime;
+            }
         }
         invaders[i].slide += slideDir * 2;
 
@@ -313,7 +361,9 @@ void main()
     SHOW_BKG;
     SPRITES_8x8;
 
-    while (1)
+    GameRunning = true; //Initialise the gameloop
+
+    while (GameRunning)
     {
         //movement
         if (joypad() & J_LEFT)
