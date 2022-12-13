@@ -6,6 +6,7 @@
 #include "GameSprites.c"
 #include "BkgTiles.c"
 
+//#define _HITBOXDEBUG
 #define _DEBUG
 //#define _RELEASE
 
@@ -48,6 +49,17 @@ struct EnemyBullet
     bool isActive;
 };
 
+#ifdef _HITBOXDEBUG
+struct DebugSpriteObj
+{
+    UBYTE spriteId;
+    uint8_t x;
+    uint8_t y;
+    uint8_t val;
+};
+struct DebugSpriteObj dbgSpr;
+#endif
+
 //Global Variables
 //General
 bool GameRunning;
@@ -67,7 +79,8 @@ bool hasInvaderReachedScreenedge;
 uint8_t shotTimer;
 const uint8_t shotTimerMaxTime = 2;
 
-struct EnemyBullet invaderBullet[5];    //The enemy can have 5 bullets on screen at the same time
+const uint8_t maxInvaderBulletCount = 3;
+struct EnemyBullet invaderBullet[3];    //The enemy can have n bullets on screen at the same time
 const uint8_t initialInvaderBulletSpriteId = 4;
 uint8_t freeBulletIdx;
 const uint8_t invaderBulletSpeed = 2;
@@ -111,9 +124,95 @@ void InitShip()
     ship.spriteIds[1] = 2;
     MoveShip(&ship, ship.x, ship.y);
 }
+
+//Player Bullet Functions
+void InitBullet()
+{
+    bullet.spriteId = 3;
+    bullet.x = 0;
+    bullet.y = 0;
+    bullet.isActive = false;
+}
+void CreateBullet()
+{
+    //If the bullet is already alive, do nothing
+    if (bullet.isActive)
+        return;
+
+    //Initialise the bullet
+    bullet.x = ship.x + 8;
+    bullet.y = ship.y - 8;
+    bullet.isActive = true;
+    set_sprite_tile(3, 3);
+    move_sprite(bullet.spriteId, bullet.x, bullet.y);
+}
+void DestroyBullet()
+{
+    bullet.isActive = false;
+    set_sprite_tile(3, NULL);
+}
+void UpdateBullet()
+{
+    if (!bullet.isActive)
+        return;
+
+    //Check if bullet is out of screen
+    if (bullet.y >= 255)
+    {
+        DestroyBullet();
+        return;
+    }
+#ifndef _HITBOXDEBUG
+    for (uint8_t i = 0;i < 40;i++)
+    {
+        //Check for invaders
+        if (bullet.isActive && invaders[i].isActive)
+        {
+            //CollisionCheck method
+
+            //Get actual coords of invader
+            // uint8_t invX = invaders[i].x * 8 - invaders[i].slide;
+            // uint8_t invY = invaders[i].y * 8;
+
+            const uint8_t invX = invaders[i].x * 8 + 8 + invaders[i].slide - 2 * slideDir;
+            const uint8_t invY = invaders[i].y * 8 + 16;
+
+            // bool hit = ((bullet.x >= invX && bullet.x <= invX + 8) &&
+            //     (bullet.y >= invY && bullet.y <= invY + 8)) ||
+            //     ((invX >= bullet.x && invX <= bullet.x + 1) &&
+            //         (invY >= bullet.y && invY <= bullet.y + 8));
+
+            // Tutorial Method
+
+            // int8_t xd = (bullet.x) - (invaders[i].x * 8 + 4 + invaders[i].slide);
+            // int8_t yd = (bullet.y) - invaders[i].y * 8 + 4;
+
+            // // Get the absolute value
+            // if (xd < 0)xd = -xd;
+            // if (yd < 0)yd = -yd;
+
+            // const bool hit = (xd < 5 && yd < 8);
+
+            if ((bullet.x >= invX && bullet.x <= invX + 8) && (bullet.y <= invY + 8 && bullet.y <= invY))
+            {
+                invaders[i].isActive = false;
+                DestroyBullet();
+                // Just draw blank
+                set_bkg_tile_xy(invaders[i].x, invaders[i].y, 0);
+                set_bkg_tile_xy(invaders[i].x + slideDir, invaders[i].y, 0);
+                return;
+            }
+        }
+    }
+#endif
+    //Move the bullet
+    bullet.y -= bulletSpeed;
+    move_sprite(bullet.spriteId, bullet.x, bullet.y);
+}
+
 void InitInvaderBullets()
 {
-    for (uint8_t i = 0;i < 5;i++)
+    for (uint8_t i = 0;i < maxInvaderBulletCount;i++)
     {
         invaderBullet[i].spriteId = initialInvaderBulletSpriteId + i;
         invaderBullet[i].isActive = false;
@@ -125,7 +224,7 @@ void InitInvaderBullets()
 //Invader bullet functions
 void TryCreateInvaderBullet(uint8_t x, uint8_t y)
 {
-    for (uint8_t i = 0;i < 5;i++)
+    for (uint8_t i = 0;i < maxInvaderBulletCount;i++)
     {
         //Check if there's any unused bullets
         if (invaderBullet[i].isActive)
@@ -154,7 +253,7 @@ void DestroyInvaderBullet(uint8_t i)
 }
 void UpdateInvaderBullets()
 {
-    for (uint8_t i = 0;i < 5;i++)
+    for (uint8_t i = 0;i < maxInvaderBulletCount;i++)
     {
         if (!invaderBullet[i].isActive)
             continue;
@@ -177,10 +276,10 @@ void UpdateInvaderBullets()
             (ship.y >= invaderBullet[i].y && ship.y <= invaderBullet[i].y + 8);
         if (hit)
         {
-            //hit the player.
-            printf("GAME OVER");
-            //stop the game loop, for now
-            GameRunning = false;
+            // //hit the player.
+            // printf("GAME OVER");
+            // //stop the game loop, for now
+            // GameRunning = false;
         }
     }
 }
@@ -235,6 +334,7 @@ void UpdateinvaderTiles(uint8_t i)
 
 void UpdateInvaders()
 {
+    bool invMove = true;
     //invader movement timer
     invaderMoveTimer++;
     if (invaderMoveTimer < 16) //16
@@ -271,6 +371,7 @@ void UpdateInvaders()
         }
         else
         {
+
             //Move the invader
             UpdateinvaderTiles(i);
 
@@ -300,54 +401,10 @@ void UpdateInvaders()
     }
 }
 
-
-//Player Bullet Functions
-void InitBullet()
-{
-    bullet.spriteId = 3;
-    bullet.x = 0;
-    bullet.y = 0;
-    bullet.isActive = false;
-}
-void CreateBullet()
-{
-    //If the bullet is already alive, do nothing
-    if (bullet.isActive)
-        return;
-
-    //Initialise the bullet
-    bullet.x = ship.x + 8;
-    bullet.y = ship.y - 8;
-    bullet.isActive = true;
-    set_sprite_tile(3, 3);
-    move_sprite(bullet.spriteId, bullet.x, bullet.y);
-}
-void DestroyBullet()
-{
-    set_sprite_tile(3, NULL);
-    bullet.isActive = false;
-}
-void UpdateBullet()
-{
-    if (!bullet.isActive)
-        return;
-
-    //Check if bullet is out of screen
-    if (bullet.y >= 255)
-    {
-        DestroyBullet();
-        return;
-    }
-
-    //Move the bullet
-    bullet.y -= bulletSpeed;
-    move_sprite(bullet.spriteId, bullet.x, bullet.y);
-}
-
 //Main function
 void main()
 {
-    set_sprite_data(0, 5, GameSprites);
+    set_sprite_data(0, 6, GameSprites);
     set_bkg_data(0, 17, BkgTiles);
     init_bkg(0);
 
@@ -355,6 +412,15 @@ void main()
     InitInvaders();
     InitBullet();
     InitInvaderBullets();
+#ifdef _HITBOXDEBUG
+    //init debugsprite
+    dbgSpr.spriteId = 15; //one that is certainly empty
+    dbgSpr.x = 0;
+    dbgSpr.y = 0;
+    dbgSpr.val = 0;
+    set_sprite_tile(dbgSpr.spriteId, 5);
+
+#endif
 
     DISPLAY_ON;
     SHOW_SPRITES;
@@ -394,9 +460,43 @@ void main()
         }
 
         //Updating
+        UpdateBullet();
         UpdateInvaders();
         UpdateInvaderBullets();
-        UpdateBullet();
+
+#ifdef _HITBOXDEBUG
+        //Debug stuff
+
+        //Set the debug sprite to the converted X Y coords of the first invader active
+        for (uint8_t i = 0;i < 40;i++)
+        {
+            if (invaders[i].isActive)
+            {
+                const uint8_t invX = invaders[i].x * 8 + 8 + invaders[i].slide - 2 * slideDir;
+                const uint8_t invY = invaders[i].y * 8 + 16;
+
+                dbgSpr.x = invX;
+                dbgSpr.y = invY;
+                dbgSpr.val = i;
+
+                break;
+            }
+
+        }
+        move_sprite(dbgSpr.spriteId, dbgSpr.x, dbgSpr.y);
+
+        //Check collision only with the dbgsprt
+        if ((bullet.x >= dbgSpr.x && bullet.x <= dbgSpr.x + 8) && (bullet.y <= dbgSpr.y + 8 && bullet.y <= dbgSpr.y))
+        {
+            const uint8_t it = dbgSpr.val;
+            invaders[it].isActive = false;
+            DestroyBullet();
+            // Just draw blank
+            set_bkg_tile_xy(invaders[it].x, invaders[it].y, 0);
+            set_bkg_tile_xy(invaders[it].x + slideDir, invaders[it].y, 0);
+            GameRunning = false;
+        }
+#endif
 
         PerformantDelay(2);
     }
