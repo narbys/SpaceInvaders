@@ -1,8 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
-//#include <stdlib.h>
 #include <gb/gb.h>
-//#include <rand.h>
+#include <gbdk/font.h>
 #include "GameSprites.c"
 #include "BkgTiles.c"
 
@@ -28,7 +27,7 @@ struct Ship
 struct Invader
 {
     bool isActive;
-    UBYTE spriteId; //Invader is 8x8px.
+    UBYTE spriteId; //bkg tile id in this case
     uint8_t x;
     uint8_t y;
     int8_t slide;
@@ -67,6 +66,9 @@ bool GameRunning;
 //player
 struct Ship ship;
 const uint8_t shipMoveSpeed = 2;
+uint8_t lives;
+uint16_t score;
+uint8_t scoreSplit[5];
 
 struct Bullet bullet;
 const uint8_t bulletSpeed = 3;
@@ -103,8 +105,61 @@ uint8_t RandomNumber(uint8_t min, uint8_t max)
 
     return min + (v % (max - min));    // get value at memory address
 }
+void SplitScore()
+{
+    scoreSplit[4] = (score / 10000) % 10;
+    scoreSplit[3] = (score / 1000) % 10;
+    scoreSplit[2] = (score / 100) % 10;
+    scoreSplit[1] = (score / 10) % 10;
+    scoreSplit[0] = score % 10;
+}
 
-
+void InitHUD()
+{
+    const unsigned char winmap[] =
+    {
+        //SCORE 00000
+        0x1D,0x0D,0x19,0x1C,0x0F, 0x00, 0x01,0x01,0x01,0x01,0x01,
+        //2 spaces
+        0x00,0x00,
+        //lives 3
+        0x37,0x38,0x04
+    };
+    set_win_tiles(0, 0, 16, 1, winmap);
+    move_win(7, 124);
+}
+void UpdateHUDScore()
+{
+    SplitScore();
+    const uint8_t scoreTileIdx = 10;
+    for (uint8_t i = 0;i < 5;i++)
+    {
+        set_win_tile_xy(scoreTileIdx - i, 0, 0x01 + scoreSplit[i]);
+    }
+    move_win(7, 124);
+}
+void UpdateHUDLives()
+{
+    const uint8_t livesTileIdx = 15;
+    set_win_tile_xy(livesTileIdx, 0, 0x01 + lives);
+    move_win(7, 124);
+}
+void GameOverScreen()
+{
+    HIDE_SPRITES;
+    init_bkg(0);
+    init_win(0);
+    //A=0x0B
+    const unsigned char gameover_window[] =
+    {
+        //game over
+        0x11, 0x0B, 0x17, 0x0F, 0x00, 0x19, 0x20, 0x0F, 0x1C
+    };
+    set_win_tiles(0, 0, 9, 1, gameover_window);
+    move_win(50, 60);
+    //stop the game loop
+    GameRunning = false;
+}
 //Player (ship) functions
 void MoveShip(struct Ship* pShip, uint8_t x, uint8_t y)
 {
@@ -123,6 +178,13 @@ void InitShip()
     set_sprite_tile(2, 2);
     ship.spriteIds[1] = 2;
     MoveShip(&ship, ship.x, ship.y);
+
+    lives = 3;
+    score = 0;
+    for (uint8_t i = 0;i < 5;i++)
+    {
+        scoreSplit[i] = 0;
+    }
 }
 
 //Player Bullet Functions
@@ -197,9 +259,15 @@ void UpdateBullet()
             {
                 invaders[i].isActive = false;
                 DestroyBullet();
-                // Just draw blank
+
+                //Draw the hit invader blank
                 set_bkg_tile_xy(invaders[i].x, invaders[i].y, 0);
                 set_bkg_tile_xy(invaders[i].x + slideDir, invaders[i].y, 0);
+
+                //Increase score;
+                score++;
+                UpdateHUDScore();
+
                 return;
             }
         }
@@ -276,10 +344,15 @@ void UpdateInvaderBullets()
             (ship.y >= invaderBullet[i].y && ship.y <= invaderBullet[i].y + 8);
         if (hit)
         {
-            // //hit the player.
-            // printf("GAME OVER");
-            // //stop the game loop, for now
-            // GameRunning = false;
+            //hit the player.
+            DestroyInvaderBullet(i);
+            lives--;
+            if (lives == 0)
+            {
+                GameOverScreen();
+                return;
+            }
+            UpdateHUDLives();
         }
     }
 }
@@ -292,7 +365,7 @@ void InitInvaders()
         invaders[i].x = (i % 8) * 2 + 2;
         invaders[i].y = (i / 8) + 2;
         invaders[i].isActive = true;
-        invaders[i].spriteId = 1;
+        invaders[i].spriteId = 38;
         invaders[i].slide = 0;
         set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
     }
@@ -404,10 +477,39 @@ void UpdateInvaders()
 //Main function
 void main()
 {
-    set_sprite_data(0, 6, GameSprites);
-    set_bkg_data(0, 17, BkgTiles);
-    init_bkg(0);
+    //initialise the font
+    font_t min_font;
+    font_init();
+    min_font = font_load(font_min); //36 tiles
+    font_set(min_font);
 
+    //initialise the sprite and bkg data
+    set_sprite_data(0, 6, GameSprites);
+    //18 background tiles for invaders + 2 for player on HUD
+    set_bkg_data(37, 20, BkgTiles);
+    //set the background and window to empty by default
+    init_bkg(0);
+    init_win(0);
+
+    //Start screen
+    const unsigned char gamestart_window[] =
+    {
+        //press start
+        0x1A,0x1C,0x0F,0x1D,0x1D,0x00,0x1D,0x1E,0x0B,0x1C,0x1E
+    };
+    set_win_tiles(0, 0, 11, 1, gamestart_window);
+    move_win(44, 60);
+    SHOW_WIN;
+    while (1)
+    {
+        if (joypad() & J_START)
+        {
+            break;
+        }
+    }
+
+    //Initialise everything in the game
+    InitHUD();
     InitShip();
     InitInvaders();
     InitBullet();
@@ -425,6 +527,7 @@ void main()
     DISPLAY_ON;
     SHOW_SPRITES;
     SHOW_BKG;
+    SHOW_WIN;
     SPRITES_8x8;
 
     GameRunning = true; //Initialise the gameloop
