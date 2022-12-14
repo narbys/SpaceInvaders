@@ -308,7 +308,7 @@ void TryCreateInvaderBullet(uint8_t x, uint8_t y)
     }
     //We found a free space, spawn the bullet
     invaderBullet[freeBulletIdx].isActive = true;
-    invaderBullet[freeBulletIdx].x = x + freeBulletIdx * 8;
+    invaderBullet[freeBulletIdx].x = x;
     invaderBullet[freeBulletIdx].y = y;
     set_sprite_tile(invaderBullet[freeBulletIdx].spriteId, 4);
     move_sprite(invaderBullet[freeBulletIdx].spriteId, invaderBullet[freeBulletIdx].x, invaderBullet[freeBulletIdx].y);
@@ -451,8 +451,12 @@ void UpdateInvaders()
             //Try to shoot a bullet
             if (shotTimer == 0 && RandomNumber(0, 100) < 10)
             {
-                const uint8_t x = invaders[i].x * 8 + 12 + invaders[i].slide;
-                const uint8_t y = invaders[i].y * 8 + 24;
+                // const uint8_t x = invaders[i].x * 8 + 12 + invaders[i].slide;
+                // const uint8_t y = invaders[i].y * 8 + 24;
+                const uint8_t x = invaders[i].x * 8 + 8 + invaders[i].slide - 2 * slideDir;
+                const uint8_t y = invaders[i].y * 8 + 16;
+
+
                 TryCreateInvaderBullet(x, y);
                 shotTimer = shotTimerMaxTime;
             }
