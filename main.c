@@ -6,8 +6,8 @@
 #include "BkgTiles.c"
 
 //#define _HITBOXDEBUG
-#define _DEBUG
-//#define _RELEASE
+//#define _DEBUG
+#define _RELEASE
 
 //Debug includes
 #ifdef _DEBUG
@@ -68,6 +68,7 @@ struct Ship ship;
 const uint8_t shipMoveSpeed = 2;
 uint8_t lives;
 uint16_t score;
+const uint8_t scoreIncreaseAmount = 5;
 uint8_t scoreSplit[5];
 
 struct Bullet bullet;
@@ -80,6 +81,7 @@ uint8_t invaderMoveTimer;
 bool hasInvaderReachedScreenedge;
 uint8_t shotTimer;
 const uint8_t shotTimerMaxTime = 2;
+uint8_t currentInvaderCount = 40;
 
 const uint8_t maxInvaderBulletCount = 3;
 struct EnemyBullet invaderBullet[3];    //The enemy can have n bullets on screen at the same time
@@ -157,6 +159,22 @@ void GameOverScreen()
     };
     set_win_tiles(0, 0, 9, 1, gameover_window);
     move_win(50, 60);
+    //stop the game loop
+    GameRunning = false;
+}
+void YouWinScreen()
+{
+    HIDE_SPRITES;
+    init_bkg(0);
+    init_win(0);
+    //A=0x0B
+    const unsigned char youwin_window[] =
+    {
+        //you win
+        0x23, 0x19, 0x1F, 0x00, 0x21, 0x13, 0x18
+    };
+    set_win_tiles(0, 0, 7, 1, youwin_window);
+    move_win(58, 60);
     //stop the game loop
     GameRunning = false;
 }
@@ -265,8 +283,15 @@ void UpdateBullet()
                 set_bkg_tile_xy(invaders[i].x + slideDir, invaders[i].y, 0);
 
                 //Increase score;
-                score++;
+                score += scoreIncreaseAmount;
                 UpdateHUDScore();
+
+                //Decrease invader count and check if last one
+                currentInvaderCount--;
+                if (currentInvaderCount == 0)
+                {
+                    YouWinScreen();
+                }
 
                 return;
             }
