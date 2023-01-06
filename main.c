@@ -273,7 +273,7 @@ void UpdateBullet()
 
             // const bool hit = (xd < 5 && yd < 8);
 
-            if ((bullet.x >= invX && bullet.x <= invX + 8) && (bullet.y <= invY + 8 && bullet.y <= invY))
+            if ((bullet.x >= invX && bullet.x <= invX + 8) && (bullet.y <= invY + 8 && bullet.y >= invY))
             {
                 invaders[i].isActive = false;
                 DestroyBullet();
