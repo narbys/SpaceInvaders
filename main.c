@@ -248,30 +248,8 @@ void UpdateBullet()
         //Check for invaders
         if (bullet.isActive && invaders[i].isActive)
         {
-            //CollisionCheck method
-
-            //Get actual coords of invader
-            // uint8_t invX = invaders[i].x * 8 - invaders[i].slide;
-            // uint8_t invY = invaders[i].y * 8;
-
             const uint8_t invX = invaders[i].x * 8 + 8 + invaders[i].slide - 2 * slideDir;
             const uint8_t invY = invaders[i].y * 8 + 16;
-
-            // bool hit = ((bullet.x >= invX && bullet.x <= invX + 8) &&
-            //     (bullet.y >= invY && bullet.y <= invY + 8)) ||
-            //     ((invX >= bullet.x && invX <= bullet.x + 1) &&
-            //         (invY >= bullet.y && invY <= bullet.y + 8));
-
-            // Tutorial Method
-
-            // int8_t xd = (bullet.x) - (invaders[i].x * 8 + 4 + invaders[i].slide);
-            // int8_t yd = (bullet.y) - invaders[i].y * 8 + 4;
-
-            // // Get the absolute value
-            // if (xd < 0)xd = -xd;
-            // if (yd < 0)yd = -yd;
-
-            // const bool hit = (xd < 5 && yd < 8);
 
             if ((bullet.x >= invX && bullet.x <= invX + 8) && (bullet.y <= invY + 8 && bullet.y >= invY))
             {
@@ -394,11 +372,6 @@ void InitInvaders()
         invaders[i].slide = 0;
         set_bkg_tile_xy(invaders[i].x, invaders[i].y, invaders[i].spriteId);
     }
-
-    // for (uint8_t i = 0;i < 24;i++)
-    // {
-    //     invaders[i].isActive = false;
-    // }
 
     slideDir = -1;
     invaderMoveTimer = 0;
@@ -629,7 +602,18 @@ void main()
             GameRunning = false;
         }
 #endif
-
         PerformantDelay(2);
+    }
+    //Check for button input when on either end screen.
+    while (true)
+    {
+        switch (joypad())
+        {
+        case J_A:
+        case J_B:
+        case J_START:
+            reset();
+            break;
+        }
     }
 }
